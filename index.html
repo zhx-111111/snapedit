@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1E1B4B" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#1E1B4B">
+<meta name="description" content="随手改 SnapEdit · 纯前端 HTML 可视化编辑器，打开文件即可所见即所得编辑，全程本地运行">
+<meta name="robots" content="index,follow">
+<meta property="og:title" content="随手改 SnapEdit · HTML 可视化编辑器">
+<meta property="og:description" content="打开 HTML 文件即可所见即所得编辑，全程本地运行，文件不出电脑">
+<meta property="og:type" content="website">
+<title>随手改 SnapEdit · HTML 可视化编辑器</title>
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E1B4B'/%3E%3Ctext x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-size='34'%3E%E2%9C%A8%3C/text%3E%3C/svg%3E">
+
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;background:#FAFAF9;color:#292524;overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ===== 顶栏 ===== */
+#shell{display:flex;flex-direction:column;height:100vh;width:100vw}
+.bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1E1B4B 0%,#312E81 100%);flex-shrink:0;z-index:100;box-shadow:0 2px 12px rgba(30,27,75,.35)}
+.brand{display:flex;align-items:baseline;gap:8px;margin-right:8px;user-select:none}
+.brand b{color:#fff;font-size:16px;letter-spacing:1px}
+.brand i{color:#A5B4FC;font-size:11px;font-style:normal;letter-spacing:.5px}
+.brand .dot{width:8px;height:8px;border-radius:50%;background:#EA580C;align-self:center;box-shadow:0 0 8px rgba(234,88,12,.8)}
+.bar button{min-height:32px;padding:6px 14px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.06);border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:#E0E7FF;transition:all .15s;white-space:nowrap}
+.bar button:hover:not(:disabled){background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4)}
+.bar button:disabled{opacity:.35;cursor:not-allowed}
+.bar button.primary{background:#EA580C;border-color:#EA580C;color:#fff;box-shadow:0 2px 8px rgba(234,88,12,.4)}
+.bar button.primary:hover:not(:disabled){background:#C2410C;border-color:#C2410C}
+.bar .spacer{flex:1}
+.pill{color:#C7D2FE;font-size:12px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:6px 12px;background:rgba(255,255,255,.08);border-radius:999px;border:1px solid rgba(255,255,255,.15)}
+#badge{display:none;align-items:center;gap:6px;color:#C7D2FE;font-size:12px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);white-space:nowrap}
+#badge::before{content:"";width:7px;height:7px;border-radius:50%;background:#6EE7B7}
+#badge.dirty::before{background:#FBBF24}
+.switch{display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none;font-size:13px;color:#C7D2FE;padding:5px 12px 5px 6px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.05);transition:all .15s}
+.switch[data-active="true"]{color:#fff;border-color:#EA580C;background:rgba(234,88,12,.25)}
+.switch input{width:34px;height:18px;cursor:pointer;margin:0;accent-color:#EA580C}
+
+/* ===== 统计栏 ===== */
+#stats{display:flex;align-items:center;gap:14px;padding:4px 16px;background:rgba(30,27,75,.04);border-bottom:1px solid rgba(30,27,75,.08);font-size:11.5px;color:#6B6B80;flex-shrink:0;min-height:24px}
+#stats .item{display:flex;align-items:center;gap:4px}
+#stats .item b{color:#4338CA;font-weight:600}
+
+/* ===== 画布 ===== */
+#stage{flex:1;position:relative;overflow:hidden;background-color:#FAFAF9;background-image:radial-gradient(#E0E0EC 1px,transparent 1px);background-size:22px 22px}
+#stage.dragover::after{content:"松手载入文件";position:absolute;inset:14px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#4338CA;border:2px dashed #4338CA;border-radius:16px;background:rgba(67,56,202,.06);pointer-events:none;z-index:9996}
+#placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#6B6B80;font-size:15px;pointer-events:none;gap:14px;text-align:center;padding:24px}
+#placeholder .icon{display:grid;place-items:center;width:76px;height:76px;border-radius:20px;background:#fff;border:1px solid #E0E0EC;box-shadow:0 10px 30px rgba(30,27,75,.1);font-size:38px}
+#placeholder .hint{font-size:12.5px;color:#9C9CB0;line-height:1.8}
+#placeholder kbd{display:inline-block;padding:1px 7px;font-size:12px;font-family:ui-monospace,monospace;background:#F0F0F5;border:1px solid #E0E0EC;border-radius:5px;color:#4338CA;margin:0 2px}
+iframe#view{width:100%;height:100%;border:none;background:#fff;display:none}
+#tip{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(30,27,75,.92);color:#E0E7FF;padding:8px 18px;border-radius:999px;font-size:12px;z-index:9997;pointer-events:none;opacity:0;transition:opacity .2s;white-space:nowrap}
+#banner{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:none;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FDBA74;color:#9A3412;padding:8px 14px;border-radius:10px;font-size:13px;box-shadow:0 8px 24px rgba(154,52,18,.15);z-index:9997;max-width:calc(100vw - 24px)}
+#banner button{border:none;background:#EA580C;color:#fff;padding:5px 12px;border-radius:7px;font-size:12.5px;cursor:pointer}
+#banner button:hover{background:#C2410C}
+#banner .x{cursor:pointer;color:#C2410C;padding:2px 6px;border-radius:6px}
+#banner .x:hover{background:rgba(194,65,12,.12)}
+
+/* ===== 覆盖层 ===== */
+.ovl{position:fixed;pointer-events:none;z-index:9998;border-radius:3px;display:none}
+#hoverBox{border:2px solid #6366F1;background:rgba(99,102,241,.06)}
+#pickBox{border:2px solid #EA580C;background:rgba(234,88,12,.06)}
+#dragBox{border:2px dashed #10B981;background:rgba(16,185,129,.08)}
+
+/* ===== 块操作条 ===== */
+#blockBar{position:fixed;display:none;gap:4px;background:#1E1B4B;border-radius:10px;padding:5px;z-index:10000;box-shadow:0 10px 30px rgba(30,27,75,.35)}
+#blockBar button{border:none;background:transparent;color:#E0E7FF;font-size:12.5px;padding:5px 10px;border-radius:7px;cursor:pointer;white-space:nowrap}
+#blockBar button:hover{background:rgba(255,255,255,.14)}
+#blockBar button.warn:hover{background:#BE123C}
+
+/* ===== 文字工具条 ===== */
+#textBar{position:fixed;display:none;align-items:center;gap:2px;background:#1E1B4B;border-radius:10px;padding:5px;z-index:10001;box-shadow:0 10px 30px rgba(30,27,75,.35)}
+#textBar button{border:none;background:transparent;color:#E0E7FF;font-size:13px;min-width:30px;padding:5px 7px;border-radius:7px;cursor:pointer}
+#textBar button:hover{background:rgba(255,255,255,.14)}
+#textBar button.active{background:rgba(99,102,241,.5);color:#fff}
+#textBar label{display:grid;place-items:center;width:30px;height:28px;border-radius:7px;cursor:pointer;font-size:13px;color:#E0E7FF;position:relative}
+#textBar label:hover{background:rgba(255,255,255,.14)}
+#textBar label input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+#textBar .sep{width:1px;height:18px;background:rgba(255,255,255,.2);margin:0 3px}
+#textBar select{background:rgba(255,255,255,.1);color:#E0E7FF;border:1px solid rgba(255,255,255,.2);border-radius:6px;font-size:12px;padding:2px 4px;cursor:pointer;max-width:110px}
+#textBar select option{background:#1E1B4B;color:#E0E7FF}
+
+/* ===== 颜色面板 ===== */
+#palette{position:fixed;display:none;background:#fff;border:1px solid #E0E0EC;border-radius:14px;box-shadow:0 20px 50px rgba(30,27,75,.22);padding:16px;width:300px;z-index:10002;font-size:13px}
+#palette h4{margin:0 0 12px;font-size:13px;color:#1E1B4B;display:flex;justify-content:space-between;align-items:center}
+#palette h4 span{cursor:pointer;color:#9C9CB0;font-size:15px;padding:2px 7px;border-radius:6px}
+#palette h4 span:hover{background:#F0F0F5;color:#1E1B4B}
+.crow{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.crow em{font-style:normal;width:48px;color:#48485C;flex-shrink:0;font-size:12.5px}
+.crow input[type=color]{width:34px;height:28px;border:1px solid #E0E0EC;border-radius:7px;padding:1px;cursor:pointer;background:#fff}
+.crow input[type=text]{flex:1;min-width:0;border:1px solid #E0E0EC;border-radius:7px;padding:5px 8px;font-size:12px;font-family:ui-monospace,monospace;color:#292524}
+.crow input[type=text]:focus{outline:none;border-color:#4338CA;box-shadow:0 0 0 2px rgba(67,56,202,.15)}
+.crow .clr{border:none;background:transparent;color:#9C9CB0;cursor:pointer;font-size:13px;padding:3px 6px;border-radius:6px}
+.crow .clr:hover{background:#F0F0F5;color:#292524}
+.pbtn{border:1px solid #E0E0EC;background:#fff;border-radius:7px;padding:5px 10px;font-size:12.5px;cursor:pointer;color:#292524}
+.pbtn:hover{border-color:#4338CA;color:#4338CA}
+#swatches{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid #ECECF2}
+.sw{width:22px;height:22px;border-radius:6px;cursor:pointer;border:1px solid rgba(0,0,0,.1);transition:transform .1s}
+.sw:hover{transform:scale(1.2);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+
+/* ===== 右键菜单 ===== */
+#ctxMenu{position:fixed;display:none;background:#fff;border:1px solid #E0E0EC;border-radius:10px;box-shadow:0 12px 36px rgba(30,27,75,.25);padding:6px;z-index:10003;min-width:180px;font-size:13px}
+#ctxMenu .item{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:7px;cursor:pointer;color:#292524;transition:background .12s}
+#ctxMenu .item:hover{background:#F0F0F5}
+#ctxMenu .item.warn{color:#BE123C}
+#ctxMenu .item.warn:hover{background:#FEF2F2}
+#ctxMenu .sep{border-top:1px solid #ECECF2;margin:4px 6px}
+
+/* ===== Toast ===== */
+#toast{position:fixed;right:18px;bottom:18px;background:#1E1B4B;color:#E0E7FF;padding:10px 18px;border-radius:10px;font-size:13px;z-index:10005;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;box-shadow:0 10px 30px rgba(30,27,75,.35)}
+#toast.on{opacity:1;transform:translateY(0)}
+
+/* ===== 自定义弹窗 ===== */
+#modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10006;background:rgba(30,27,75,.45);backdrop-filter:blur(4px)}
+#modal .box{background:#fff;border-radius:16px;padding:28px 28px 22px;max-width:440px;width:calc(100vw - 40px);box-shadow:0 25px 60px rgba(30,27,75,.35);text-align:center}
+#modal .box h3{margin:0 0 10px;color:#1E1B4B;font-size:16px}
+#modal .box p{margin:0 0 20px;color:#57534E;font-size:14px;line-height:1.7}
+#modal .box .row{display:flex;gap:10px;justify-content:center}
+#modal .box button{border:none;padding:8px 20px;border-radius:9px;font-size:13.5px;cursor:pointer;font-weight:500;transition:all .15s}
+#modal .box button.ok{background:#EA580C;color:#fff}
+#modal .box button.ok:hover{background:#C2410C}
+#modal .box button.cancel{background:#F0F0F5;color:#292524}
+#modal .box button.cancel:hover{background:#E7E5E4}
+
+/* ===== 加载动画 ===== */
+#loader{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10007;background:rgba(250,250,249,.85);backdrop-filter:blur(2px)}
+#loader .spin{width:42px;height:42px;border:4px solid #E0E0EC;border-top-color:#4338CA;border-radius:50%;animation:spin .8s linear infinite}
+#loader .loadText{margin-top:14px;font-size:13px;color:#6B6B80}
+#loader .wrap{display:flex;flex-direction:column;align-items:center}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== 暗色模式 ===== */
+@media (prefers-color-scheme: dark){
+  html,body{background:#0F0F1A;color:#E0E7FF}
+  #stage{background-color:#0F0F1A;background-image:radial-gradient(#2A2A40 1px,transparent 1px)}
+  #placeholder .icon{background:#1A1A2E;border-color:#2A2A40;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  #placeholder{color:#A0A0B8}
+  #placeholder .hint{color:#6B6B80}
+  #placeholder kbd{background:#1A1A2E;border-color:#2A2A40;color:#A5B4FC}
+  iframe#view{background:#0F0F1A}
+  #palette{background:#1A1A2E;border-color:#2A2A40;color:#E0E7FF}
+  #palette h4{color:#E0E7FF}
+  #palette h4 span{color:#6B6B80}
+  #palette h4 span:hover{background:#2A2A40;color:#E0E7FF}
+  .crow em{color:#A0A0B8}
+  .crow input[type=color]{border-color:#2A2A40;background:#0F0F1A}
+  .crow input[type=text]{border-color:#2A2A40;background:#0F0F1A;color:#E0E7FF}
+  .crow input[type=text]:focus{border-color:#6366F1;box-shadow:0 0 0 2px rgba(99,102,241,.25)}
+  .crow .clr{color:#6B6B80}
+  .crow .clr:hover{background:#2A2A40;color:#E0E7FF}
+  .pbtn{border-color:#2A2A40;background:#1A1A2E;color:#E0E7FF}
+  .pbtn:hover{border-color:#6366F1;color:#A5B4FC}
+  #swatches{border-top-color:#2A2A40}
+  #ctxMenu{background:#1A1A2E;border-color:#2A2A40;color:#E0E7FF}
+  #ctxMenu .item{color:#E0E7FF}
+  #ctxMenu .item:hover{background:#2A2A40}
+  #ctxMenu .item.warn{color:#FB7185}
+  #ctxMenu .item.warn:hover{background:#3B0A1A}
+  #ctxMenu .sep{border-top-color:#2A2A40}
+  #modal .box{background:#1A1A2E;color:#E0E7FF}
+  #modal .box h3{color:#E0E7FF}
+  #modal .box p{color:#A0A0B8}
+  #modal .box button.cancel{background:#2A2A40;color:#E0E7FF}
+  #modal .box button.cancel:hover{background:#3A3A50}
+  #loader{background:rgba(15,15,26,.85)}
+  #loader .loadText{color:#A0A0B8}
+  #toast{background:#312E81}
+  #stats{background:rgba(255,255,255,.03);border-bottom-color:rgba(255,255,255,.08);color:#6B6B80}
+  #stats .item b{color:#A5B4FC}
+}
+
+/* ===== 响应式 ===== */
+@media (max-width:760px){
+  .bar{flex-wrap:wrap;gap:8px;padding:8px 10px}
+  .bar .spacer{display:none}
+  .pill{order:10;max-width:none;flex:1 1 100%}
+  #badge{order:11}
+  .brand i{display:none}
+  #stats{display:none}
+}
+</style>
+</head>
+<body>
+<div id="shell">
+  <header class="bar">
+    <span class="brand"><span class="dot"></span><b>随手改</b><i>SnapEdit · HTML 可视化编辑器</i></span>
+    <button id="btnOpen" class="primary">📂 打开文件</button>
+    <input type="file" id="fileInput" accept=".html,.htm" hidden>
+    <span class="pill" id="fileName" style="display:none"></span>
+    <span id="badge">未修改</span>
+    <span class="spacer"></span>
+    <label class="switch" data-active="true" title="开启后可点击文字直接编辑"><input type="checkbox" id="tglEdit" disabled checked><span>编辑模式</span></label>
+    <label class="switch" title="让页面里的 JS 跑起来，用于翻页/动画类文件。仅对可信文件开启。"><input type="checkbox" id="tglScript" disabled><span>动态预览</span></label>
+    <button id="btnUndo" disabled title="撤销上一步（最多 30 步）">⌫ 撤销</button>
+    <button id="btnReset" disabled>⟲ 还原</button>
+    <button id="btnSave" disabled>⬇ 导出</button>
+  </header>
+  <div id="stats">
+    <span class="item">字数：<b id="statWords">0</b></span>
+    <span class="item">元素：<b id="statEls">0</b></span>
+    <span class="item">图片：<b id="statImgs">0</b></span>
+    <span class="item">链接：<b id="statLinks">0</b></span>
+    <span class="spacer" style="flex:1"></span>
+    <span class="item" id="statZoom">缩放：100%</span>
+  </div>
+  <main id="stage">
+    <div id="placeholder">
+      <div class="icon">🪄</div>
+      <div>点「打开文件」或把 HTML 拖进来，立刻开改</div>
+      <div class="hint">全程本机运行 · 文件不出电脑 · 不花一分钱<br>快捷键：<kbd>Ctrl+S</kbd> 导出 · <kbd>Ctrl+Z</kbd> 撤销 · <kbd>Esc</kbd> 取消选择 · 右键菜单更多操作</div>
+    </div>
+    <iframe id="view" sandbox="allow-same-origin" loading="eager"></iframe>
+    <div id="tip">单击文字直接改 · 拖选文字调样式 · 双击 SVG 图文字可改 · 右键查看更多操作</div>
+    <div id="banner">⚡ 内容似乎没有完整显示，页面可能依赖脚本渲染<button id="bannerBtn">开启动态预览</button><span class="x" id="bannerClose">✕</span></div>
+  </main>
+</div>
+
+<div id="hoverBox" class="ovl"></div>
+<div id="pickBox" class="ovl"></div>
+<div id="dragBox" class="ovl"></div>
+
+<!-- 块操作条 -->
+<div id="blockBar">
+  <button data-act="color" title="打开颜色面板">🎨 颜色</button>
+  <button data-act="dup" title="复制一份到下方">⧉ 复制</button>
+  <button data-act="up" title="上移">↑ 上移</button>
+  <button data-act="down" title="下移">↓ 下移</button>
+  <button data-act="editHtml" title="查看/编辑原始 HTML">⟨⟩ HTML</button>
+  <button data-act="del" class="warn" title="删除该块">🗑 删除</button>
+</div>
+
+<!-- 文字工具条 -->
+<div id="textBar">
+  <button data-cmd="bold" title="加粗 (Ctrl+B)"><b>B</b></button>
+  <button data-cmd="italic" title="斜体 (Ctrl+I)"><i>I</i></button>
+  <button data-cmd="underline" title="下划线 (Ctrl+U)"><u>U</u></button>
+  <button data-cmd="strikeThrough" title="删除线"><s>S</s></button>
+  <span class="sep"></span>
+  <label title="文字颜色">🅰<input type="color" id="selFore" value="#EA580C"></label>
+  <label title="背景高亮">🖍<input type="color" id="selBack" value="#FDE68A"></label>
+  <span class="sep"></span>
+  <select id="selFont" title="选择字体">
+    <option value="">默认字体</option>
+    <option value="sans-serif">无衬线</option>
+    <option value="serif">衬线</option>
+    <option value="monospace">等宽</option>
+    <option value="-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif">系统默认</option>
+    <option value="'Noto Sans SC',sans-serif">思源黑体</option>
+    <option value="'Noto Serif SC',serif">思源宋体</option>
+    <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+  </select>
+  <span class="sep"></span>
+  <button data-fs="-2" title="缩小字号">A−</button>
+  <button data-fs="2" title="放大字号">A＋</button>
+</div>
+
+<!-- 颜色面板 -->
+<div id="palette">
+  <h4>调整颜色 <span id="palClose" title="关闭">✕</span></h4>
+  <div class="crow"><em>文字</em><input type="color" id="pText"><input type="text" id="pTextHex" placeholder="#333333" maxlength="7"><button class="clr" data-p="color" title="清除颜色">✕</button></div>
+  <div class="crow"><em>背景</em><input type="color" id="pBg"><input type="text" id="pBgHex" placeholder="#FFFFFF" maxlength="7"><button class="clr" data-p="backgroundColor" title="清除颜色">✕</button></div>
+  <div class="crow"><em>边框</em><input type="color" id="pBd"><input type="text" id="pBdHex" placeholder="#DDDDDD" maxlength="7"><button class="clr" data-p="borderColor" title="清除颜色">✕</button></div>
+  <div class="crow"><em>样式</em><button class="pbtn" id="pBold"><b>B</b> 加粗</button><button class="pbtn" data-efs="-2">A−</button><button class="pbtn" data-efs="2">A＋</button></div>
+  <div class="crow"><em>圆角</em><button class="pbtn" data-rad="2">+圆角</button><button class="pbtn" data-rad="-2">-圆角</button><button class="pbtn" id="pShadow">+阴影</button></div>
+  <div id="swatches"></div>
+</div>
+
+<!-- 右键菜单 -->
+<div id="ctxMenu">
+  <div class="item" data-act="dup">⧉ 复制元素</div>
+  <div class="item" data-act="color">🎨 调整颜色</div>
+  <div class="item" data-act="editHtml">⟨⟩ 编辑 HTML</div>
+  <div class="sep"></div>
+  <div class="item" data-act="up">↑ 上移</div>
+  <div class="item" data-act="down">↓ 下移</div>
+  <div class="sep"></div>
+  <div class="item" data-act="copyText">📋 复制文字</div>
+  <div class="item" data-act="selectParent">⊞ 选父元素</div>
+  <div class="sep"></div>
+  <div class="item warn" data-act="del">🗑 删除</div>
+</div>
+
+<!-- HTML 编辑弹窗 -->
+<div id="htmlModal"><div class="box"><h3>编辑 HTML</h3><textarea id="htmlEditor" placeholder="在此编辑选中元素的 outerHTML..."></textarea><div class="row"><button class="cancel" id="htmlCancel">取消</button><button class="ok" id="htmlApply">应用</button></div></div></div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- 自定义弹窗 -->
+<div id="modal"><div class="box"><h3 id="modalTitle"></h3><p id="modalMsg"></p><div class="row"><button class="cancel" id="modalCancel">取消</button><button class="ok" id="modalOk">确认</button></div></div></div>
+
+<!-- 加载动画 -->
+<div id="loader"><div class="wrap"><div class="spin"></div><div class="loadText" id="loadText">正在加载...</div></div></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ========== 配置常量 ========== */
+const CFG = {
+  UNDO_LIMIT: 30,
+  CHECK_BLANK_DELAY: 500,
+  TIP_HIDE_DELAY: 5000,
+  COMMIT_DEBOUNCE: 300,
+  FONT_SIZE_MIN: 8,
+  FONT_SIZE_MAX: 120,
+  FONT_SIZE_STEP: 2,
+  ZOOM_MIN: 50,
+  ZOOM_MAX: 150,
+  ZOOM_STEP: 10,
+  SWATCH: [
+    "#1E1B4B","#4338CA","#6366F1","#818CF8",
+    "#EA580C","#C2410C","#F97316","#FB923C",
+    "#0D9488","#14B8A6","#5EEAD4",
+    "#9D174D","#DB2777","#F472B6",
+    "#D97706","#F59E0B","#FDE68A",
+    "#292524","#57534E","#A8A29E","#D6D3D1",
+    "#FFFFFF","#F5F5F4","#FAFAF5","#F0FDF4",
+    "#EF4444","#3B82F6","#8B5CF6","#EC4899"
+  ]
+};
+
+/* ========== 工具函数 ========== */
+const $ = id => document.getElementById(id);
+const view = $("view"), stage = $("stage"), tip = $("tip");
+const hoverBox = $("hoverBox"), pickBox = $("pickBox"), dragBox = $("dragBox");
+const blockBar = $("blockBar"), textBar = $("textBar"), palette = $("palette");
+const ctxMenu = $("ctxMenu");
+
+let toastTimer = null;
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove("on"),2500); }
+function setDirty(d){ dirty=d; const b=$("badge"); b.style.display="flex"; b.textContent=d?"已修改":"未修改"; b.classList.toggle("dirty",d); }
+function showEl(el){ el.style.display=""; }
+function hideEl(el){ el.style.display="none"; }
+function isVisible(el){ return el && el.offsetWidth>0 && el.offsetHeight>0; }
+
+/* 自定义弹窗 */
+function confirmModal(title, msg){
+  return new Promise(resolve=>{
+    $("modalTitle").textContent=title;
+    $("modalMsg").textContent=msg;
+    showEl($("modal"));
+    const ok=$("modalOk"), cancel=$("modalCancel");
+    const cleanup=(v)=>{ hideEl($("modal")); ok.onclick=null; cancel.onclick=null; resolve(v); };
+    ok.onclick=()=>cleanup(true);
+    cancel.onclick=()=>cleanup(false);
+  });
+}
+
+/* 颜色解析 */
+function parseColor(c){
+  if(!c) return "";
+  c = c.trim();
+  if(/^#[0-9a-fA-F]{6}$/.test(c)) return c.toUpperCase();
+  if(/^#[0-9a-fA-F]{3}$/.test(c)) return "#"+c.slice(1).split("").map(x=>x+x).join("").toUpperCase();
+  const m = c.match(/rgba?\(([^)]+)\)/);
+  if(m){
+    const parts = m[1].split(",").map(x=>parseFloat(x.trim()));
+    const [r,g,b] = parts;
+    return "#"+[r,g,b].map(n=>(+n).toString(16).padStart(2,"0")).join("").toUpperCase();
+  }
+  return "";
+}
+
+/* ========== 状态管理 ========== */
+let rawOriginal = "";
+let docHTML = "";
+let doctype = "<!DOCTYPE html>";
+let fileName = "";
+let undoStack = [];
+let vdoc = null;
+let picked = null;
+let editingEl = null;
+let editSnapshotPending = false;
+let dirty = false;
+let isRendering = false;
+let selUndoDone = false;
+let palUndone = {};
+let zoomLevel = 100;
+let dragTarget = null;
+
+/* ========== 序列化 / 撤销 ========== */
+function serialize(){
+  if(!vdoc) return docHTML;
+  let html = vdoc.documentElement.outerHTML;
+  html = html.replace(/\s+contenteditable="(true|plaintext-only)"/g,"");
+  html = html.replace(/\s+spellcheck="false"/g,"");
+  return doctype + "\n" + html;
+}
+function pushUndo(){
+  undoStack.push(docHTML);
+  if(undoStack.length>CFG.UNDO_LIMIT) undoStack.shift();
+  $("btnUndo").disabled = false;
+}
+function commit(){
+  docHTML = serialize();
+  setDirty(docHTML !== rawOriginal);
+  updateStats();
+}
+let _cmH = null;
+function commitSoon(){ clearTimeout(_cmH); _cmH = setTimeout(commit, CFG.COMMIT_DEBOUNCE); }
+
+/* ========== 文件载入 ========== */
+function loadFile(file){
+  if(!file || !/\.(html?|htm)$/i.test(file.name) && file.type!=="text/html"){ toast("请选择 HTML 文件"); return; }
+  showEl($("loader")); $("loadText").textContent="正在读取文件...";
+  const r = new FileReader();
+  r.onload = () => {
+    fileName = file.name;
+    rawOriginal = String(r.result);
+    const m = rawOriginal.match(/^\s*<!doctype[^>]*>/i);
+    doctype = m ? m[0].trim() : "<!DOCTYPE html>";
+    docHTML = rawOriginal;
+    undoStack = [];
+    $("btnUndo").disabled = true;
+    $("fileName").style.display=""; $("fileName").textContent = fileName;
+    ["tglEdit","tglScript","btnReset","btnSave"].forEach(id=>$(id).disabled=false);
+    $("tglScript").checked = false;
+    $("tglEdit").checked = true;
+    updateSwitchState($("tglEdit").closest(".switch"), true);
+    updateSwitchState($("tglScript").closest(".switch"), false);
+    setDirty(false);
+    zoomLevel = 100; updateZoomDisplay();
+    render();
+    toast("已载入：" + fileName);
+    setTimeout(()=>hideEl($("loader")), 200);
+  };
+  r.onerror = ()=>{ hideEl($("loader")); toast("读取文件失败"); };
+  r.readAsText(file);
+}
+$("btnOpen").onclick = () => $("fileInput").click();
+$("fileInput").onchange = e => { loadFile(e.target.files[0]); e.target.value=""; };
+stage.addEventListener("dragover", e=>{ e.preventDefault(); stage.classList.add("dragover"); });
+stage.addEventListener("dragleave", ()=> stage.classList.remove("dragover"));
+stage.addEventListener("drop", e=>{ e.preventDefault(); stage.classList.remove("dragover"); loadFile(e.dataTransfer.files[0]); });
+
+/* ========== 渲染 ========== */
+function render(){
+  if(isRendering) return;
+  isRendering = true;
+  clearUI();
+  const scripts = $("tglScript").checked;
+  view.setAttribute("sandbox", scripts ? "allow-scripts allow-same-origin" : "allow-same-origin");
+  view.style.display = "block";
+  $("placeholder").style.display = "none";
+  applyZoom();
+  view.srcdoc = docHTML;
+  setTimeout(()=>{ isRendering=false; }, 100);
+}
+view.addEventListener("load", () => {
+  try{ vdoc = view.contentDocument; }catch(e){ vdoc=null; return; }
+  if(!vdoc) return;
+  try{ vdoc.execCommand("styleWithCSS", false, true); }catch(e){}
+  bindViewer();
+  updateTip();
+  checkBlank();
+  updateStats();
+  applyZoom();
+});
+
+function editableOn(){ return $("tglEdit").checked && !$("tglScript").checked && !!vdoc; }
+function updateTip(){
+  if(editableOn()){ tip.style.opacity="1"; clearTimeout(tip._h); tip._h=setTimeout(()=>tip.style.opacity="0",CFG.TIP_HIDE_DELAY); }
+  else tip.style.opacity="0";
+}
+
+function updateSwitchState(sw, active){
+  if(!sw) return;
+  sw.dataset.active = active ? "true" : "false";
+}
+
+/* ========== 缩放 ========== */
+function applyZoom(){
+  if(!vdoc || !vdoc.documentElement) return;
+  const z = zoomLevel / 100;
+  vdoc.documentElement.style.transformOrigin = "top left";
+  vdoc.documentElement.style.transform = `scale(${z})`;
+  vdoc.documentElement.style.width = `${100/z}%`;
+}
+function updateZoomDisplay(){ $("statZoom").textContent = `缩放：${zoomLevel}%`; }
+function setZoom(level){
+  zoomLevel = Math.max(CFG.ZOOM_MIN, Math.min(CFG.ZOOM_MAX, level));
+  updateZoomDisplay();
+  if(vdoc) applyZoom();
+}
+
+/* ========== 统计 ========== */
+function updateStats(){
+  if(!vdoc || !vdoc.body) return;
+  const text = (vdoc.body.innerText||"").trim();
+  const words = text ? text.replace(/\s+/g," ").split(" ").length : 0;
+  const els = vdoc.body.querySelectorAll("*").length;
+  const imgs = vdoc.body.querySelectorAll("img").length;
+  const links = vdoc.body.querySelectorAll("a[href]").length;
+  $("statWords").textContent = words.toLocaleString();
+  $("statEls").textContent = els.toLocaleString();
+  $("statImgs").textContent = imgs;
+  $("statLinks").textContent = links;
+}
+
+/* ========== 视图内交互 ========== */
+const SKIP_TAGS = new Set([
+  "HTML","HEAD","BODY","META","LINK","STYLE","SCRIPT","NOSCRIPT",
+  "BR","HR","WBR","IMG","VIDEO","AUDIO","CANVAS","SVG","IFRAME",
+  "INPUT","BUTTON","SELECT","TEXTAREA","OPTION","OPTGROUP",
+  "SOURCE","TRACK","AREA","COL","EMBED","OBJECT","PARAM","PICTURE"
+]);
+
+function resolve(t){
+  if(!t || !t.tagName) return null;
+  if(SKIP_TAGS.has(t.tagName)) return null;
+  let el = t;
+  while(el && SKIP_TAGS.has(el.tagName) && el !== vdoc.body){
+    el = el.parentElement;
+  }
+  return el && el !== vdoc.body ? el : null;
+}
+
+function hasEditableContent(el){
+  if(!el) return false;
+  for(const n of el.childNodes){
+    if(n.nodeType===3 && n.textContent.trim()) return true;
+  }
+  return ["P","H1","H2","H3","H4","H5","H6","LI","TD","TH","FIGCAPTION","BLOCKQUOTE","LABEL","BUTTON","A"].includes(el.tagName);
+}
+
+function isTextEditable(el){
+  if(!el || SKIP_TAGS.has(el.tagName)) return false;
+  return hasEditableContent(el);
+}
+
+function isSvgText(el){
+  return el && el.namespaceURI === "http://www.w3.org/2000/svg" && ["text","tspan"].includes(el.tagName.toLowerCase());
+}
+
+/* ========== 拖拽移动 ========== */
+let dragState = null; // {el, startX, startY, origNext}
+
+function initDrag(el, clientX, clientY){
+  const r = el.getBoundingClientRect();
+  dragState = {
+    el,
+    offsetX: clientX - r.left,
+    offsetY: clientY - r.top,
+    placeholder: vdoc.createElement("div"),
+    parent: el.parentNode
+  };
+  dragState.placeholder.style.height = r.height + "px";
+  dragState.placeholder.style.border = "2px dashed #6366F1";
+  dragState.placeholder.style.borderRadius = "4px";
+  dragState.placeholder.style.margin = "2px 0";
+  dragState.placeholder.style.background = "rgba(99,102,241,.08)";
+  el.after(dragState.placeholder);
+  el.style.position = "absolute";
+  el.style.zIndex = "9999";
+  el.style.pointerEvents = "none";
+  el.style.opacity = "0.85";
+  moveDrag(clientX, clientY);
+}
+
+function moveDrag(clientX, clientY){
+  if(!dragState) return;
+  const f = view.getBoundingClientRect();
+  const x = clientX - f.left - dragState.offsetX;
+  const y = clientY - f.top - dragState.offsetY;
+  dragState.el.style.left = x + "px";
+  dragState.el.style.top = y + "px";
+}
+
+function endDrag(){
+  if(!dragState) return;
+  const {el, placeholder} = dragState;
+  el.style.position = "";
+  el.style.zIndex = "";
+  el.style.pointerEvents = "";
+  el.style.opacity = "";
+  el.style.left = "";
+  el.style.top = "";
+  if(placeholder.parentNode) placeholder.parentNode.insertBefore(el, placeholder);
+  placeholder.remove();
+  pushUndo();
+  commit();
+  dragState = null;
+  reposition();
+}
+
+/* ========== 绑定事件 ========== */
+function bindViewer(){
+  const win = view.contentWindow;
+
+  vdoc.addEventListener("mouseover", e => {
+    if(!editableOn() || dragState) return;
+    const el = resolve(e.target);
+    if(el && el!==picked && el!==editingEl && hasEditableContent(el)) showBox(hoverBox, el);
+    else hideEl(hoverBox);
+  }, true);
+
+  vdoc.addEventListener("mouseout", ()=> { if(!dragState) hideEl(hoverBox); }, true);
+
+  vdoc.addEventListener("click", e => {
+    if(!editableOn()) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = resolve(e.target);
+    if(!el){ deselect(); return; }
+    if(isSvgText(el)){ pickBlock(el); return; }
+    if(isTextEditable(el)) beginEdit(el); else pickBlock(el);
+  }, true);
+
+  vdoc.addEventListener("dblclick", e => {
+    if(!editableOn()) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = resolve(e.target);
+    if(el && isSvgText(el)) editSvgText(el);
+  }, true);
+
+  /* 右键菜单 */
+  vdoc.addEventListener("contextmenu", e => {
+    if(!editableOn()) return;
+    e.preventDefault(); e.stopPropagation();
+    const el = resolve(e.target) || picked || editingEl;
+    if(el){
+      pickBlock(el);
+      showCtxMenu(e.clientX, e.clientY);
+    }
+  }, true);
+
+  /* 拖拽开始 */
+  vdoc.addEventListener("mousedown", e => {
+    if(!editableOn() || e.button !== 0) return;
+    const el = resolve(e.target);
+    if(!el || el === editingEl) return;
+    // 只有当选中块后，在块操作条上按住才能拖拽 — 简化为 Alt+拖拽
+    if(!e.altKey) return;
+    e.preventDefault();
+    initDrag(el, e.clientX, e.clientY);
+  }, true);
+
+  vdoc.addEventListener("paste", e => {
+    if(!editingEl) return;
+    e.preventDefault();
+    const t = (e.clipboardData||{}).getData ? e.clipboardData.getData("text/plain") : "";
+    if(t) vdoc.execCommand("insertText", false, t);
+  }, true);
+
+  vdoc.addEventListener("input", e => {
+    if(editingEl && editSnapshotPending){ pushUndo(); editSnapshotPending=false; }
+    if(editingEl) commitSoon();
+  }, true);
+
+  vdoc.addEventListener("selectionchange", onSelChange);
+
+  let rafId = null;
+  function onScrollResize(){ if(!rafId) rafId = requestAnimationFrame(()=>{ rafId=null; reposition(); }); }
+  win.addEventListener("scroll", onScrollResize, true);
+  win.addEventListener("resize", onScrollResize);
+
+  /* 全局鼠标移动（拖拽） */
+  document.addEventListener("mousemove", e=>{
+    if(dragState) moveDrag(e.clientX, e.clientY);
+  });
+  document.addEventListener("mouseup", e=>{
+    if(dragState) endDrag();
+  });
+
+  vdoc.addEventListener("keydown", e=>{
+    if(e.key==="Escape"){ deselect(); hideCtxMenu(); }
+    if((e.metaKey||e.ctrlKey) && e.key==="z"){ e.preventDefault(); $("btnUndo").click(); }
+    if((e.metaKey||e.ctrlKey) && e.key==="y"){ e.preventDefault(); /* 重做暂未实现 */ }
+  }, true);
+
+  checkBlank();
+}
+
+/* ========== 空白检测 ========== */
+function checkBlank(){
+  if($("tglScript").checked){ $("banner").style.display="none"; return; }
+  setTimeout(()=>{
+    if(!vdoc || !vdoc.body) return;
+    const textLen = (vdoc.body.innerText||"").trim().length;
+    const visibleEls = vdoc.body.querySelectorAll("*");
+    let visibleCount = 0;
+    for(const el of visibleEls){ if(el.offsetWidth>0 && el.offsetHeight>0) visibleCount++; if(visibleCount>10) break; }
+    const hasScript = /<script[\s>]/i.test(docHTML);
+    $("banner").style.display = (hasScript && textLen < 40 && visibleCount < 5) ? "flex" : "none";
+  }, CFG.CHECK_BLANK_DELAY);
+}
+$("bannerBtn").onclick = async ()=>{
+  const ok = await confirmModal("开启动态预览", "动态预览会执行文件里的 JavaScript，仅建议对自己生成或可信的文件开启。继续？");
+  if(ok){ $("banner").style.display="none"; $("tglScript").checked=true; updateSwitchState($("tglScript").closest(".switch"),true); $("tglScript").dispatchEvent(new Event("change")); }
+};
+$("bannerClose").onclick = ()=> $("banner").style.display="none";
+
+/* ========== SVG 文字编辑 ========== */
+function editSvgText(el){
+  const old = el.textContent;
+  const v = prompt("修改 SVG 图中文字：", old);
+  if(v === null || v === old) return;
+  pushUndo(); el.textContent = v; commit(); reposition();
+  toast("SVG 文字已修改");
+}
+
+/* ========== 文字编辑 ========== */
+function beginEdit(el){
+  if(editingEl === el) return;
+  endEdit(); unpick();
+  editingEl = el;
+  editSnapshotPending = true;
+  el.setAttribute("contenteditable","true");
+  el.setAttribute("spellcheck","false");
+  requestAnimationFrame(()=>{ try{ el.focus(); }catch(e){} });
+  showBox(pickBox, el);
+  showBlockBar(el);
+}
+function endEdit(){
+  if(!editingEl) return;
+  clearTimeout(_cmH);
+  editingEl.removeAttribute("contenteditable");
+  editingEl.removeAttribute("spellcheck");
+  commit();
+  editingEl = null;
+  hideEl(textBar);
+}
+
+/* ========== 块选中 ========== */
+function pickBlock(el){
+  endEdit();
+  picked = el;
+  showBox(pickBox, el);
+  showBlockBar(el);
+}
+function unpick(){ picked=null; hideEl(pickBox); hideEl(blockBar); }
+function deselect(){ endEdit(); unpick(); hidePalette(); hideEl(textBar); hideCtxMenu(); }
+
+/* ========== 块操作条 ========== */
+blockBar.addEventListener("click", e => {
+  const act = e.target.closest("button")?.dataset.act;
+  const el = picked || editingEl;
+  if(!act || !el) return;
+  if(act==="color"){ openPalette(el); return; }
+  if(act==="editHtml"){ openHtmlEditor(el); return; }
+  pushUndo();
+  if(act==="dup"){ const c=el.cloneNode(true); c.removeAttribute("contenteditable"); el.after(c); toast("已复制一份到下方"); }
+  if(act==="del"){ el.remove(); deselect(); toast("已删除"); }
+  if(act==="up" && el.previousElementSibling) el.previousElementSibling.before(el);
+  if(act==="down" && el.nextElementSibling) el.nextElementSibling.after(el);
+  commit(); reposition();
+});
+
+/* ========== 右键菜单 ========== */
+function showCtxMenu(x, y){
+  ctxMenu.style.display = "block";
+  const w = ctxMenu.offsetWidth || 180;
+  const h = ctxMenu.offsetHeight || 200;
+  ctxMenu.style.left = Math.min(x, window.innerWidth - w - 8) + "px";
+  ctxMenu.style.top = Math.min(y, window.innerHeight - h - 8) + "px";
+}
+function hideCtxMenu(){ ctxMenu.style.display = "none"; }
+
+ctxMenu.addEventListener("click", e=>{
+  const act = e.target.closest(".item")?.dataset.act;
+  const el = picked || editingEl;
+  hideCtxMenu();
+  if(!act || !el) return;
+  if(act==="color"){ openPalette(el); return; }
+  if(act==="editHtml"){ openHtmlEditor(el); return; }
+  if(act==="copyText"){
+    const txt = el.innerText || el.textContent || "";
+    navigator.clipboard.writeText(txt).then(()=>toast("已复制文字")).catch(()=>toast("复制失败"));
+    return;
+  }
+  if(act==="selectParent"){
+    if(el.parentElement && el.parentElement !== vdoc.body){
+      pickBlock(el.parentElement);
+    }
+    return;
+  }
+  pushUndo();
+  if(act==="dup"){ const c=el.cloneNode(true); c.removeAttribute("contenteditable"); el.after(c); toast("已复制"); }
+  if(act==="del"){ el.remove(); deselect(); toast("已删除"); }
+  if(act==="up" && el.previousElementSibling) el.previousElementSibling.before(el);
+  if(act==="down" && el.nextElementSibling) el.nextElementSibling.after(el);
+  commit(); reposition();
+});
+
+/* ========== HTML 编辑器弹窗 ========== */
+let htmlEditTarget = null;
+function openHtmlEditor(el){
+  htmlEditTarget = el;
+  $("htmlEditor").value = el.outerHTML;
+  showEl($("htmlModal"));
+  setTimeout(()=>$("htmlEditor").focus(), 50);
+}
+$("htmlApply").onclick = ()=>{
+  if(!htmlEditTarget) return;
+  const newHtml = $("htmlEditor").value.trim();
+  if(!newHtml){ toast("HTML 不能为空"); return; }
+  try{
+    pushUndo();
+    const tmp = vdoc.createElement("div");
+    tmp.innerHTML = newHtml;
+    const newEl = tmp.firstElementChild;
+    if(newEl){
+      htmlEditTarget.parentNode.replaceChild(newEl, htmlEditTarget);
+      picked = newEl;
+      hideEl($("htmlModal"));
+      htmlEditTarget = null;
+      commit(); reposition();
+      toast("HTML 已更新");
+    }
+  }catch(err){
+    toast("HTML 解析失败：" + err.message);
+  }
+};
+$("htmlCancel").onclick = ()=>{ hideEl($("htmlModal")); htmlEditTarget=null; };
+
+/* ========== 选中文字样式 ========== */
+function onSelChange(){
+  if(!editingEl){ hideEl(textBar); return; }
+  const sel = vdoc.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount){ hideEl(textBar); return; }
+  const r = sel.getRangeAt(0).getBoundingClientRect();
+  if(!r.width && !r.height){ hideEl(textBar); return; }
+  const f = view.getBoundingClientRect();
+  textBar.style.display="flex";
+  const w = textBar.offsetWidth || 280;
+  let x = f.left + r.left + r.width/2 - w/2;
+  x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+  let y = f.top + r.top - 42;
+  if(y < 52) y = f.top + r.bottom + 8;
+  textBar.style.left = x+"px"; textBar.style.top = y+"px";
+  updateTextBarActive();
+}
+
+function updateTextBarActive(){
+  if(!editingEl) return;
+  const sel = vdoc.getSelection();
+  if(!sel || !sel.rangeCount) return;
+  const node = sel.anchorNode;
+  if(!node) return;
+  const parent = node.nodeType===3 ? node.parentElement : node;
+  if(!parent) return;
+  const cs = view.contentWindow.getComputedStyle(parent);
+  $("textBar").querySelector('[data-cmd="bold"]')?.classList.toggle("active", parseInt(cs.fontWeight)>=600);
+  $("textBar").querySelector('[data-cmd="italic"]')?.classList.toggle("active", cs.fontStyle.includes("italic"));
+  $("textBar").querySelector('[data-cmd="underline"]')?.classList.toggle("active", cs.textDecorationLine.includes("underline"));
+  $("textBar").querySelector('[data-cmd="strikeThrough"]')?.classList.toggle("active", cs.textDecorationLine.includes("line-through"));
+  // 同步字体选择
+  const ff = cs.fontFamily || "";
+  const fontSel = $("selFont");
+  let matched = "";
+  for(const opt of fontSel.options){ if(ff.includes(opt.value.split(",")[0].replace(/['"]/g,"")) && opt.value){ matched = opt.value; break; } }
+  fontSel.value = matched;
+}
+
+textBar.addEventListener("mousedown", e=> e.preventDefault());
+textBar.addEventListener("click", e => {
+  const btn = e.target.closest("button");
+  if(!btn || !vdoc) return;
+  if(btn.dataset.cmd){ pushUndo(); vdoc.execCommand(btn.dataset.cmd); commit(); updateTextBarActive(); return; }
+  if(btn.dataset.fs){ stepSelFontSize(+btn.dataset.fs); }
+});
+
+$("selFont").addEventListener("change", e=>{
+  const val = e.target.value;
+  if(!val || !editingEl) return;
+  const sel = vdoc.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+  pushUndo();
+  vdoc.execCommand("fontName", false, val);
+  commit();
+});
+
+/* 字号调整 */
+function stepSelFontSize(dir){
+  const sel = vdoc.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+  const anchor = sel.anchorNode.nodeType===3 ? sel.anchorNode.parentElement : sel.anchorNode;
+  const cs = view.contentWindow.getComputedStyle(anchor);
+  const cur = parseFloat(cs.fontSize) || 14;
+  const next = Math.max(CFG.FONT_SIZE_MIN, Math.min(CFG.FONT_SIZE_MAX, cur + dir*CFG.FONT_SIZE_STEP));
+  pushUndo();
+  const range = sel.getRangeAt(0);
+  const span = vdoc.createElement("span");
+  span.style.fontSize = next+"px";
+  try{
+    const frag = range.extractContents();
+    span.appendChild(frag);
+    range.insertNode(span);
+    while(span.firstChild) span.parentNode.insertBefore(span.firstChild, span);
+    span.remove();
+  }catch(e){}
+  commit();
+  updateTextBarActive();
+}
+
+function selCmd(cmd, val){
+  if(!vdoc) return;
+  if(!selUndoDone){ pushUndo(); selUndoDone = true; }
+  vdoc.execCommand(cmd,false,val); commitSoon();
+}
+$("selFore").addEventListener("pointerdown", ()=> selUndoDone=false);
+$("selBack").addEventListener("pointerdown", ()=> selUndoDone=false);
+$("selFore").addEventListener("input", e=> selCmd("foreColor", e.target.value));
+$("selBack").addEventListener("input", e=> selCmd("hiliteColor", e.target.value));
+
+/* ========== 颜色面板 ========== */
+let palTarget = null;
+let lastProp = "backgroundColor";
+const PROPS = [
+  ["pText","pTextHex","color"],
+  ["pBg","pBgHex","backgroundColor"],
+  ["pBd","pBdHex","borderColor"]
+];
+const PROP2ID = {color:["pText","pTextHex"], backgroundColor:["pBg","pBgHex"], borderColor:["pBd","pBdHex"]};
+
+function openPalette(el){
+  palTarget = el;
+  palUndone = {};
+  lastProp = "backgroundColor";
+  const cs = view.contentWindow.getComputedStyle(el);
+  PROPS.forEach(([pid,hid,prop])=>{
+    const hex = parseColor(cs[prop]) || "#000000";
+    $(pid).value = hex; $(hid).value = hex;
+  });
+  palette.style.display = "block";
+  const bar = blockBar.getBoundingClientRect();
+  let x = Math.min(bar.left, window.innerWidth-316);
+  let y = bar.bottom + 8;
+  if(y + 280 > window.innerHeight) y = Math.max(8, bar.top - 288);
+  palette.style.left = Math.max(8,x)+"px"; palette.style.top = y+"px";
+}
+function hidePalette(){ palette.style.display="none"; palTarget=null; }
+$("palClose").onclick = hidePalette;
+
+PROPS.forEach(([pid,hid,prop])=>{
+  $(pid).addEventListener("pointerdown", ()=> lastProp=prop);
+  $(hid).addEventListener("focus", ()=> lastProp=prop);
+  $(pid).addEventListener("input", e=>{ applyColor(prop, e.target.value); $(hid).value=e.target.value; });
+  $(hid).addEventListener("change", e=>{
+    let v = e.target.value.trim();
+    if(!/^#?[0-9a-fA-F]{3}$|^#?[0-9a-fA-F]{6}$/.test(v)){ toast("请输入 3 或 6 位色值，如 #EA580C"); return; }
+    if(v[0]!=="#") v = "#"+v;
+    if(v.length===4) v = "#"+v.slice(1).split("").map(x=>x+x).join("");
+    v = v.toUpperCase();
+    $(pid).value=v; applyColor(prop, v);
+  });
+  $(hid).addEventListener("keydown", e=>{ if(e.key==="Enter") e.target.blur(); });
+});
+
+palette.addEventListener("click", e=>{
+  const p = e.target.closest(".clr")?.dataset.p;
+  if(p && palTarget){ pushUndo(); palTarget.style[p]=""; commit(); toast("已清除该项颜色"); return; }
+  const efs = e.target.closest("[data-efs]")?.dataset.efs;
+  if(efs && palTarget){
+    const cs = view.contentWindow.getComputedStyle(palTarget);
+    const cur = parseFloat(cs.fontSize) || 14;
+    pushUndo(); palTarget.style.fontSize = Math.max(CFG.FONT_SIZE_MIN, Math.min(CFG.FONT_SIZE_MAX, cur + (+efs))) + "px"; commit();
+  }
+  const rad = e.target.closest("[data-rad]")?.dataset.rad;
+  if(rad && palTarget){
+    const cs = view.contentWindow.getComputedStyle(palTarget);
+    const cur = parseFloat(cs.borderRadius) || 0;
+    pushUndo(); palTarget.style.borderRadius = Math.max(0, cur + (+rad)) + "px"; commit();
+    toast(`圆角：${palTarget.style.borderRadius}`);
+  }
+  if(e.target.id==="pShadow" && palTarget){
+    const cs = view.contentWindow.getComputedStyle(palTarget);
+    pushUndo();
+    if(cs.boxShadow && cs.boxShadow !== "none"){
+      palTarget.style.boxShadow = "none";
+      toast("已移除阴影");
+    } else {
+      palTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,.15)";
+      toast("已添加阴影");
+    }
+    commit();
+  }
+});
+
+$("pBold").onclick = ()=>{
+  if(!palTarget) return;
+  const cs = view.contentWindow.getComputedStyle(palTarget);
+  const bold = parseInt(cs.fontWeight,10) >= 600;
+  pushUndo(); palTarget.style.fontWeight = bold ? "normal" : "bold"; commit();
+};
+
+function applyColor(prop, val){
+  if(!palTarget) return;
+  if(!palUndone[prop]){ pushUndo(); palUndone[prop]=true; }
+  palTarget.style[prop]=val; commitSoon();
+}
+
+/* 色板 */
+const swBox = $("swatches");
+CFG.SWATCH.forEach(c=>{
+  const s=document.createElement("span"); s.className="sw"; s.style.background=c; s.title=c;
+  s.onclick=()=>{ applyColor(lastProp, c); const [pid,hid]=PROP2ID[lastProp]; $(pid).value=c; $(hid).value=c; };
+  swBox.appendChild(s);
+});
+
+/* ========== 覆盖层定位（rAF 节流） ========== */
+let _rafPos = null;
+function requestReposition(){
+  if(_rafPos) return;
+  _rafPos = requestAnimationFrame(()=>{ _rafPos=null; doReposition(); });
+}
+function doReposition(){
+  hideEl(hoverBox);
+  const el = picked || editingEl;
+  if(el && el.isConnected){ showBox(pickBox, el); showBlockBar(el); }
+  else { hideEl(pickBox); hideEl(blockBar); }
+  hidePalette(); hideEl(textBar); hideCtxMenu();
+}
+function reposition(){ requestReposition(); }
+
+function showBox(box, el){
+  const r = el.getBoundingClientRect(), f = view.getBoundingClientRect();
+  const top = Math.max(f.top, f.top + r.top), left = f.left + r.left;
+  const bottom = Math.min(f.bottom, f.top + r.bottom);
+  if(bottom <= f.top || (f.top + r.top) >= f.bottom){ box.style.display="none"; return; }
+  box.style.display="block";
+  box.style.left=left+"px"; box.style.top=top+"px";
+  box.style.width=r.width+"px"; box.style.height=(bottom-top)+"px";
+}
+function showBlockBar(el){
+  const r = el.getBoundingClientRect(), f = view.getBoundingClientRect();
+  blockBar.style.display="flex";
+  const w = blockBar.offsetWidth || 340;
+  let x = f.left + r.left;
+  x = Math.max(8, Math.min(x, window.innerWidth - w - 8));
+  let y = f.top + r.top - 42;
+  if(y < 52) y = Math.min(window.innerHeight-48, f.top + r.bottom + 8);
+  blockBar.style.left=x+"px"; blockBar.style.top=y+"px";
+}
+function clearUI(){ picked=null; editingEl=null; [hoverBox,pickBox,blockBar,textBar].forEach(hideEl); hidePalette(); hideCtxMenu(); }
+
+/* ========== 顶栏动作 ========== */
+$("tglEdit").addEventListener("change", e=>{
+  updateSwitchState(e.target.closest(".switch"), e.target.checked);
+  deselect(); updateTip();
+});
+$("tglScript").addEventListener("change", async e=>{
+  updateSwitchState(e.target.closest(".switch"), e.target.checked);
+  if(e.target.checked && !e.target._warned){
+    e.target._warned = true;
+    const ok = await confirmModal("开启动态预览", "动态预览会执行文件里的 JavaScript，仅建议对自己生成或可信的文件开启。继续？");
+    if(!ok){ e.target.checked=false; updateSwitchState(e.target.closest(".switch"),false); return; }
+  }
+  $("tglEdit").disabled = e.target.checked;
+  if(e.target.checked) $("tglEdit").checked=false;
+  deselect(); render();
+});
+
+$("btnUndo").onclick = ()=>{
+  if(!undoStack.length) return;
+  docHTML = undoStack.pop();
+  $("btnUndo").disabled = !undoStack.length;
+  setDirty(docHTML !== rawOriginal);
+  render(); toast("已撤销");
+};
+
+$("btnReset").onclick = async ()=>{
+  const ok = await confirmModal("还原所有修改", "放弃所有修改，回到刚打开时的样子？");
+  if(!ok) return;
+  docHTML = rawOriginal; undoStack=[]; $("btnUndo").disabled=true;
+  setDirty(false); render(); toast("已还原");
+};
+
+/* 格式化 HTML 导出 */
+function formatHtml(html){
+  // 简单的缩进格式化
+  let formatted = "";
+  let indent = 0;
+  const tokens = html.split(/(<\/?[^>]+>)/g).filter(t=>t);
+  for(const token of tokens){
+    if(token.match(/^<\//)){ indent = Math.max(0, indent-1); formatted += "  ".repeat(indent) + token + "\n"; }
+    else if(token.match(/^<[^!][^>]*[^/]>$/) && !token.match(/<(br|hr|img|input|meta|link|source|area|col|embed|param|wbr)\b/i)){ formatted += "  ".repeat(indent) + token + "\n"; indent++; }
+    else if(token.match(/^<[^>]+\/>$/) || token.match(/<(br|hr|img|input|meta|link|source|area|col|embed|param|wbr)\b/i)){ formatted += "  ".repeat(indent) + token + "\n"; }
+    else { formatted += "  ".repeat(indent) + token + "\n"; }
+  }
+  return formatted.trim() + "\n";
+}
+
+/* 导出 */
+async function inlineImages(){
+  if(!vdoc) return;
+  const imgs = [...vdoc.querySelectorAll("img")].filter(i => i.src && !i.src.startsWith("data:") && i.complete && i.naturalWidth > 0);
+  let done = 0, failed = [];
+  for(const img of imgs){
+    try{
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.getContext("2d").drawImage(img, 0, 0);
+      img.src = c.toDataURL("image/png");
+      done++;
+    }catch(e){ failed.push(img.src.slice(0,60)); }
+  }
+  if(done) toast(`已内嵌 ${done} 张图片${failed.length?`，${failed.length} 张跨域图保留原链接`:""}`);
+}
+
+$("btnSave").onclick = async ()=>{
+  endEdit();
+  if(!$("tglScript").checked) await inlineImages();
+  let out = $("tglScript").checked ? docHTML : serialize();
+  // 美化 HTML
+  try{ out = formatHtml(out); }catch(e){}
+  const blob = new Blob([out], {type:"text/html;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = fileName.replace(/\.(html?|htm)$/i,"") + "-改.html";
+  a.click(); URL.revokeObjectURL(a.href);
+  toast("已导出：" + a.download);
+};
+
+/* ========== 全局快捷键 ========== */
+document.addEventListener("keydown", e=>{
+  if((e.metaKey||e.ctrlKey) && e.key==="s"){ e.preventDefault(); if(!$("btnSave").disabled) $("btnSave").click(); }
+  if((e.metaKey||e.ctrlKey) && e.key==="z"){ e.preventDefault(); if(!$("btnUndo").disabled) $("btnUndo").click(); }
+  if(e.key==="Escape"){ deselect(); hideCtxMenu(); hideEl($("htmlModal")); }
+  // Ctrl+= / Ctrl+- 缩放
+  if((e.ctrlKey || e.metaKey) && (e.key==="=" || e.key==="+")){ e.preventDefault(); setZoom(zoomLevel+CFG.ZOOM_STEP); }
+  if((e.ctrlKey || e.metaKey) && e.key==="-"){ e.preventDefault(); setZoom(zoomLevel-CFG.ZOOM_STEP); }
+  if((e.ctrlKey || e.metaKey) && e.key==="0"){ e.preventDefault(); setZoom(100); }
+});
+
+document.addEventListener("mousedown", e=>{
+  if(!palette.contains(e.target) && !blockBar.contains(e.target) && !textBar.contains(e.target) && !ctxMenu.contains(e.target) && e.target!==view) {
+    if(!e.target.closest(".bar") && !e.target.closest(".switch")){ deselect(); hideCtxMenu(); }
+  }
+});
+
+window.addEventListener("beforeunload", e=>{
+  if(dirty){ e.preventDefault(); e.returnValue="有未保存的修改，确定离开吗？"; }
+});
+
+/* ========== Service Worker ========== */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(reg=>{
+      console.log("[SW] registered:", reg.scope);
+    }).catch(err=>{
+      console.warn("[SW] registration failed:", err);
+    });
+  });
+}
+
+/* ========== 空闲初始化 ========== */
+if("requestIdleCallback" in window){
+  requestIdleCallback(()=>{
+    // 预构建色板已完成
+  }, { timeout: 2000 });
+}
+
+})();
+</script>
+
+<!-- HTML 编辑弹窗样式（内联避免额外请求） -->
+<style>
+#htmlModal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:10008;background:rgba(30,27,75,.5);backdrop-filter:blur(4px)}
+#htmlModal .box{background:#fff;border-radius:16px;padding:24px;max-width:600px;width:calc(100vw - 40px);box-shadow:0 25px 60px rgba(30,27,75,.35)}
+#htmlModal h3{margin:0 0 12px;color:#1E1B4B;font-size:15px}
+#htmlModal textarea{width:100%;height:280px;border:1px solid #E0E0EC;border-radius:10px;padding:12px;font-family:ui-monospace,monospace;font-size:12.5px;color:#292524;resize:vertical;line-height:1.6}
+#htmlModal textarea:focus{outline:none;border-color:#4338CA;box-shadow:0 0 0 2px rgba(67,56,202,.15)}
+#htmlModal .row{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+#htmlModal .row button{border:none;padding:8px 20px;border-radius:9px;font-size:13.5px;cursor:pointer;font-weight:500}
+#htmlModal .row .ok{background:#EA580C;color:#fff}
+#htmlModal .row .ok:hover{background:#C2410C}
+#htmlModal .row .cancel{background:#F0F0F5;color:#292524}
+#htmlModal .row .cancel:hover{background:#E7E5E4}
+@media (prefers-color-scheme: dark){
+  #htmlModal .box{background:#1A1A2E;color:#E0E7FF}
+  #htmlModal h3{color:#E0E7FF}
+  #htmlModal textarea{background:#0F0F1A;color:#E0E7FF;border-color:#2A2A40}
+  #htmlModal textarea:focus{border-color:#6366F1;box-shadow:0 0 0 2px rgba(99,102,241,.25)}
+  #htmlModal .row .cancel{background:#2A2A40;color:#E0E7FF}
+  #htmlModal .row .cancel:hover{background:#3A3A50}
+}
+</style>
+
+</body>
+</html>
