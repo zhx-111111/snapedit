@@ -1,16 +1,12 @@
-# Wrangler 配置：让团队无需手动设置即可复现部署
+# Cloudflare Pages 配置
 # 文档：https://developers.cloudflare.com/pages/platform/wrangler
 
 name = "snapedit"
-compatibility_date = "2026-08-13"
+compatibility_date = "2026-08-14"
 
-# 关键：告诉 Cloudflare 这是 Pages 项目，根目录即构建产物
-pages_build_output_dir = "./"
+# 纯静态站点，无需构建
+# Cloudflare Pages 会自动将项目根目录作为发布目录
 
-# 不需要构建命令（纯静态单文件），保持空即可
-[build]
-command = ""
-
-# 环境变量（如需扩展为带后端的版本可在此加）
+# 环境变量（如需扩展可在此添加）
 # [vars]
 # APP_ENV = "production"

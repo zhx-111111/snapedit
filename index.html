@@ -406,7 +406,8 @@ function commitSoon(){ clearTimeout(_cmH); _cmH = setTimeout(commit, CFG.COMMIT_
 
 /* ========== 文件载入 ========== */
 function loadFile(file){
-  if(!file || !/\.(html?|htm)$/i.test(file.name) && file.type!=="text/html"){ toast("请选择 HTML 文件"); return; }
+  const isHTML = /\.(html?|htm)$/i.test(file.name) || file.type === "text/html";
+  if(!file || !isHTML){ toast("请选择 HTML 文件"); return; }
   showEl($("loader")); $("loadText").textContent="正在读取文件...";
   const r = new FileReader();
   r.onload = () => {
@@ -491,8 +492,11 @@ function setZoom(level){
 /* ========== 统计 ========== */
 function updateStats(){
   if(!vdoc || !vdoc.body) return;
-  const text = (vdoc.body.innerText||"").trim();
-  const words = text ? text.replace(/\s+/g," ").split(" ").length : 0;
+  const text = (vdoc.body.textContent||"").trim();
+  // 中文字符数 + 英文单词数
+  const cnChars = (text.match(/[\u4e00-\u9fa5]/g)||[]).length;
+  const enWords = (text.replace(/[\u4e00-\u9fa5]/g," ").match(/[a-zA-Z0-9]+/g)||[]).length;
+  const words = cnChars + enWords;
   const els = vdoc.body.querySelectorAll("*").length;
   const imgs = vdoc.body.querySelectorAll("img").length;
   const links = vdoc.body.querySelectorAll("a[href]").length;
@@ -512,12 +516,13 @@ const SKIP_TAGS = new Set([
 
 function resolve(t){
   if(!t || !t.tagName) return null;
-  if(SKIP_TAGS.has(t.tagName)) return null;
   let el = t;
-  while(el && SKIP_TAGS.has(el.tagName) && el !== vdoc.body){
+  // 向上查找最近的可编辑元素
+  while(el && el !== vdoc.body && el !== vdoc.documentElement){
+    if(!SKIP_TAGS.has(el.tagName)) return el;
     el = el.parentElement;
   }
-  return el && el !== vdoc.body ? el : null;
+  return null;
 }
 
 function hasEditableContent(el){
@@ -1072,15 +1077,31 @@ $("btnReset").onclick = async ()=>{
 
 /* 格式化 HTML 导出 */
 function formatHtml(html){
-  // 简单的缩进格式化
+  // 更健壮的缩进格式化
   let formatted = "";
   let indent = 0;
-  const tokens = html.split(/(<\/?[^>]+>)/g).filter(t=>t);
+  const VOID_TAGS = /^(br|hr|img|input|meta|link|source|area|col|embed|param|wbr|track|base|keygen)$/i;
+  const tokens = html.split(/(<\/?[^>]+>)/g).filter(t=>t && t.trim());
   for(const token of tokens){
-    if(token.match(/^<\//)){ indent = Math.max(0, indent-1); formatted += "  ".repeat(indent) + token + "\n"; }
-    else if(token.match(/^<[^!][^>]*[^/]>$/) && !token.match(/<(br|hr|img|input|meta|link|source|area|col|embed|param|wbr)\b/i)){ formatted += "  ".repeat(indent) + token + "\n"; indent++; }
-    else if(token.match(/^<[^>]+\/>$/) || token.match(/<(br|hr|img|input|meta|link|source|area|col|embed|param|wbr)\b/i)){ formatted += "  ".repeat(indent) + token + "\n"; }
-    else { formatted += "  ".repeat(indent) + token + "\n"; }
+    const tagMatch = token.match(/^<\/?([a-zA-Z][a-zA-Z0-9]*)/);
+    const tagName = tagMatch ? tagMatch[1].toLowerCase() : "";
+    if(token.match(/^<\//)){
+      indent = Math.max(0, indent-1);
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+    } else if(token.match(/^<!--/)){
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+    } else if(token.match(/^<!\[/)){
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+    } else if(token.match(/^<\?/)){
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+    } else if(tagMatch && !VOID_TAGS.test(tagName) && !token.endsWith("/>") && !token.match(/\/$/)){
+      // 开始标签（非自闭合）
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+      indent++;
+    } else {
+      // 自闭合标签或 void 元素
+      formatted += "  ".repeat(indent) + token.trim() + "\n";
+    }
   }
   return formatted.trim() + "\n";
 }

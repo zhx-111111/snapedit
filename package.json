@@ -1,0 +1,14 @@
+{
+  "name": "snapedit",
+  "version": "2.0.0",
+  "description": "随手改 SnapEdit · 纯前端 HTML 可视化编辑器，全程本地运行",
+  "type": "module",
+  "scripts": {
+    "build": "echo 'No build step needed - static site' && exit 0",
+    "deploy": "echo 'Deploy via Cloudflare Pages Git integration'"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}
